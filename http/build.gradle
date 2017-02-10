@@ -31,10 +31,10 @@ dependencies {
 }
 
 task makeJar(type: Copy) {
-    delete 'build/libs/android-async-httpconnection-1.0.6.jar'
+    delete 'build/libs/android-async-httpconnection-1.0.0.jar'
     from('build/intermediates/bundles/release/')
     into('build/libs/')
     include('classes.jar')
-    rename('classes.jar', 'android-async-httpconnection-1.0.6.jar')
+    rename('classes.jar', 'android-async-httpconnection-1.0.0.jar')
 }
 makeJar.dependsOn(build)
