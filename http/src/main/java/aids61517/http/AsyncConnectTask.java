@@ -11,11 +11,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
+import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -113,11 +115,9 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
             String e = TrustManagerFactory.getDefaultAlgorithm();
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(e);
             SSLContext ctx = SSLContext.getInstance("TLS");
-            //ctx.init(new KeyManager[0], new TrustManager[]{new DefaultTrustManager()}, new SecureRandom());
-            ctx.init(null, new TrustManager[]{new DefaultTrustManager()}, null);
+            ctx.init(new KeyManager[0], new TrustManager[]{new DefaultTrustManager()}, new SecureRandom());
             HttpsURLConnection httpsURLConnection = (HttpsURLConnection) mConnection;
             httpsURLConnection.setSSLSocketFactory(ctx.getSocketFactory());
-            httpsURLConnection.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
         } catch (Exception e) {
             Log.d(TAG, "setSSLSocket error");
         }
