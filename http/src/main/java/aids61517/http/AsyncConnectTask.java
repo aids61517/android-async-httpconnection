@@ -83,7 +83,7 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
             mResponseHandler.setHeaderFields(mConnection.getHeaderFields());
             String read;
             while ((read = mReadResultInputStream.readLine()) != null) {
-                mResultStringBuilder.append(read);
+                mResultStringBuilder.append(read).append("\n");
             }
         } catch (IOException exception) {
             throw exception;
