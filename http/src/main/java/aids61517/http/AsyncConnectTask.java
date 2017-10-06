@@ -3,8 +3,6 @@ package aids61517.http;
 import android.os.AsyncTask;
 import android.util.Log;
 
-import org.apache.http.conn.ssl.SSLSocketFactory;
-
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -12,16 +10,11 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.security.SecureRandom;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
 
 /**
  * Created by deming_huang on 2015/12/31.
@@ -29,11 +22,11 @@ import javax.net.ssl.X509TrustManager;
 public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
     private final String TAG = AsyncConnectTask.class.getSimpleName();
     private HttpRequest mRequest;
-    private boolean isConnecting = false;
+    private boolean mIsConnecting = false;
     private HttpURLConnection mConnection;
-    private DataOutputStream postBodyParamOutputStream;
-    private StringBuilder resultStringBuilder = new StringBuilder();
-    private BufferedReader readResultInputStream;
+    private DataOutputStream mPostBodyParamOutputStream;
+    private StringBuilder mResultStringBuilder = new StringBuilder();
+    private BufferedReader mReadResultInputStream;
     private HttpResponseHandler mResponseHandler;
 
     public AsyncConnectTask(HttpRequest request, HttpResponseHandler responseHandler) {
@@ -43,7 +36,7 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
     }
 
     public boolean isConnect() {
-        return isConnecting;
+        return mIsConnecting;
     }
 
     public void setHeaders() {
@@ -67,9 +60,9 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
             }
 
             if (!paramString.isEmpty()) {
-                postBodyParamOutputStream = new DataOutputStream(mConnection.getOutputStream());
-                postBodyParamOutputStream.writeBytes(paramString);
-                postBodyParamOutputStream.flush();
+                mPostBodyParamOutputStream = new DataOutputStream(mConnection.getOutputStream());
+                mPostBodyParamOutputStream.writeBytes(paramString);
+                mPostBodyParamOutputStream.flush();
             }
         } catch (IOException exception) {
             Log.d(TAG, "setBodyParams IOException:" + exception.toString());
@@ -80,30 +73,35 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
         }
     }
 
-    public void readResult() throws Exception {
+    private void readResult(boolean successful) throws Exception {
         try {
-            readResultInputStream = new BufferedReader(new InputStreamReader(mConnection.getInputStream(), mRequest.getCharsetName()));
+            if (successful) {
+                mReadResultInputStream = new BufferedReader(new InputStreamReader(mConnection.getInputStream(), mRequest.getCharsetName()));
+            } else {
+                mReadResultInputStream = new BufferedReader(new InputStreamReader(mConnection.getErrorStream(), mRequest.getCharsetName()));
+            }
             mResponseHandler.setHeaderFields(mConnection.getHeaderFields());
             String read;
-            while ((read = readResultInputStream.readLine()) != null) {
-                resultStringBuilder.append(read);
+            while ((read = mReadResultInputStream.readLine()) != null) {
+                mResultStringBuilder.append(read);
             }
         } catch (IOException exception) {
-            Log.d(TAG, "readResult error:" + exception.toString());
             throw exception;
         }
     }
 
-    public void closeStreamAndReader() {
+    private void closeStreamAndReader() {
         try {
             if (mConnection != null) {
                 mConnection.disconnect();
             }
-            if (postBodyParamOutputStream != null) {
-                postBodyParamOutputStream.close();
+            if (mPostBodyParamOutputStream != null) {
+                mPostBodyParamOutputStream.close();
+                mPostBodyParamOutputStream = null;
             }
-            if (readResultInputStream != null) {
-                readResultInputStream.close();
+            if (mReadResultInputStream != null) {
+                mReadResultInputStream.close();
+                mReadResultInputStream = null;
             }
         } catch (IOException e) {
             Log.d(TAG, "closeStreamAndReader error:" + e.toString());
@@ -113,9 +111,9 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
     private void setSSLSocket() {
         try {
             String e = TrustManagerFactory.getDefaultAlgorithm();
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(e);
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(e);
             SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(new KeyManager[0], new TrustManager[]{new DefaultTrustManager()}, new SecureRandom());
+            ctx.init(null, trustManagerFactory.getTrustManagers(), new SecureRandom());
             HttpsURLConnection httpsURLConnection = (HttpsURLConnection) mConnection;
             httpsURLConnection.setSSLSocketFactory(ctx.getSocketFactory());
         } catch (Exception e) {
@@ -137,7 +135,7 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
     protected Boolean doInBackground(String... params) {
         boolean isSuccess = false;
         try {
-            isConnecting = true;
+            mIsConnecting = true;
             mConnection = (HttpURLConnection) mRequest.getUrl().openConnection();
             if (isHttpsConnect()) {
                 setSSLSocket();
@@ -150,23 +148,20 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
             mConnection.setReadTimeout(mRequest.getTimeout());
             mConnection.setRequestMethod(mRequest.getRequestMethodType());
             mConnection.connect();
-
             if (isNeedSetBodyParams()) {
                 setBodyParams();
             }
-
             int responseCode = mConnection.getResponseCode();
             if (mResponseHandler != null) {
                 mResponseHandler.setResponseCode(responseCode);
-                readResult();
+                readResult(isRequestSuccess(responseCode));
             }
             mConnection.disconnect();
-
             isSuccess = true;
         } catch (Exception e) {
             Log.d(TAG, e.toString());
             e.printStackTrace();
-            resultStringBuilder.append(e.toString());
+            mResultStringBuilder.append(e.toString());
         }
         closeStreamAndReader();
         return isSuccess;
@@ -174,30 +169,21 @@ public class AsyncConnectTask extends AsyncTask<String, String, Boolean> {
 
     @Override
     protected void onPostExecute(Boolean isSuccess) {
-        isConnecting = false;
+        mIsConnecting = false;
         if (mResponseHandler == null) {
             return;
         }
         if (isSuccess) {
-            mResponseHandler.onSuccess(resultStringBuilder.toString());
+            mResponseHandler.onSuccess(mResultStringBuilder.toString());
         } else {
-            mResponseHandler.onFail(String.valueOf(mResponseHandler.getResponseCode()), resultStringBuilder.toString());
+            mResponseHandler.onFail(String.valueOf(mResponseHandler.getResponseCode()), mResultStringBuilder.toString());
         }
+
+        mResponseHandler = null;
+        mRequest = null;
     }
 
-
-    private class DefaultTrustManager implements X509TrustManager {
-        private DefaultTrustManager() {
-        }
-
-        public void checkClientTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
-        }
-
-        public void checkServerTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
-        }
-
-        public X509Certificate[] getAcceptedIssuers() {
-            return null;
-        }
+    private boolean isRequestSuccess(int httpStatusCode) {
+        return httpStatusCode >= 200 && httpStatusCode < 300;
     }
 }

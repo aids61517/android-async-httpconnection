@@ -9,40 +9,50 @@ import java.util.Map;
  * Created by deming_huang on 2015/12/31.
  */
 public abstract class HttpResponseHandler {
-    protected int responseCode;
-    protected Map<String, List<String>> headerFields;
-    protected int requestCode;
+    protected final static String FIELD_COOKIE = "Set-Cookie";
+    private int mResponseCode;
+    private Map<String, List<String>> mHeaderFields;
+    private int mRequestCode;
+    private List<String> mCookieList;
 
     public HttpResponseHandler() {
-        requestCode = 0;
+        mRequestCode = 0;
     }
 
     public HttpResponseHandler(int requestCode) {
-        this.requestCode = requestCode;
+        mRequestCode = requestCode;
     }
 
     public void setRequestCode(int requestCode) {
-        this.requestCode = requestCode;
+        mRequestCode = requestCode;
     }
 
     public int getRequestCode() {
-        return requestCode;
+        return mRequestCode;
     }
 
     public int getResponseCode() {
-        return responseCode;
+        return mResponseCode;
     }
 
     public void setResponseCode(int responseCode) {
-        this.responseCode = responseCode;
+        mResponseCode = responseCode;
     }
 
     public void setHeaderFields(Map<String, List<String>> headerFields) {
-        this.headerFields = headerFields;
+        mHeaderFields = headerFields;
     }
 
     public Map<String, List<String>> getHeaderFields() {
-        return headerFields;
+        return mHeaderFields;
+    }
+
+    public List<String> getCookieList() {
+        if (mCookieList == null) {
+            mCookieList = mHeaderFields.get(FIELD_COOKIE);
+        }
+
+        return mCookieList;
     }
 
     public abstract void onSuccess(String result);
